@@ -1,3 +1,9 @@
+use mod_a::file_a;
+
+mod mod_a {
+    pub mod file_a;
+}
+
 fn main() {
-    println!("Hello, world!");
+    file_a::greet();
 }
