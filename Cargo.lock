@@ -595,6 +595,20 @@ name = "end_rust_modules"
 version = "0.1.0"
 
 [[package]]
+name = "end_sqlx"
+version = "0.1.0"
+dependencies = [
+ "chrono",
+ "dotenv",
+ "futures",
+ "serde",
+ "serde_json",
+ "serde_repr",
+ "sqlx",
+ "tokio",
+]
+
+[[package]]
 name = "errno"
 version = "0.3.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1846,6 +1860,20 @@ dependencies = [
 [[package]]
 name = "start_rust_modules"
 version = "0.1.0"
+
+[[package]]
+name = "start_sqlx"
+version = "0.1.0"
+dependencies = [
+ "chrono",
+ "dotenv",
+ "futures",
+ "serde",
+ "serde_json",
+ "serde_repr",
+ "sqlx",
+ "tokio",
+]
 
 [[package]]
 name = "stringprep"
