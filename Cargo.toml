@@ -4,5 +4,7 @@ members = [
     "2/start_rust_modules",
     "2/start_sqlx",
     "2/end_sqlx",
+    "2/start_lazy_static",
+    "2/end_lazy_static",
     "final/twitter-api"
 ]
