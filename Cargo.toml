@@ -7,6 +7,8 @@ members = [
     "2/start_lazy_static",
     "2/end_lazy_static",
     "2/start_fake",
+    "2/end_fake",
     "2/start_mockall",
+    "2/end_mockall",
     "final/twitter-api"
 ]

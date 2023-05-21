@@ -6,5 +6,7 @@ use fake::Fake;
 use std::ops::Range;
 
 fn main() {
-    
+    // let name: String = FirstName().fake();
+    let sentence: String = Sentence(Range{ start: 5, end: 10}).fake();
+    println!("{}", sentence);
 }

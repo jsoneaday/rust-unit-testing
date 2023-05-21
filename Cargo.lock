@@ -603,10 +603,24 @@ dependencies = [
 ]
 
 [[package]]
+name = "end_fake"
+version = "0.1.0"
+dependencies = [
+ "fake",
+]
+
+[[package]]
 name = "end_lazy_static"
 version = "0.1.0"
 dependencies = [
  "lazy_static",
+]
+
+[[package]]
+name = "end_mockall"
+version = "0.1.0"
+dependencies = [
+ "mockall",
 ]
 
 [[package]]
