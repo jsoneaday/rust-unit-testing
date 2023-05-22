@@ -15,7 +15,7 @@ pub struct ProfileQueryResult {
     pub avatar: Vec<u8>
 }
 
-#[derive(Deserialize, Serialize, Clone)]
+#[derive(Deserialize, Serialize, Clone, PartialEq)]
 pub struct ProfileCreate {
     pub user_name: String,
     pub full_name: String,

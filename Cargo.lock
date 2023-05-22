@@ -2264,6 +2264,7 @@ dependencies = [
  "fake",
  "futures",
  "lazy_static",
+ "mockall",
  "rand",
  "reqwest",
  "serde",

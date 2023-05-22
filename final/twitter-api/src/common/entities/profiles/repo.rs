@@ -2,6 +2,8 @@ use crate::common::entities::base::{EntityId, DbRepo};
 use super::model::{ProfileCreate, ProfileQueryResult};
 use async_trait::async_trait;
 use sqlx::{Pool, Postgres};
+use mockall::automock;
+use mockall::predicate::*;
 
 mod private_members {
     use super::*;
@@ -61,6 +63,7 @@ mod private_members {
     }
 }
 
+#[automock]
 #[async_trait]
 pub trait InsertProfileFn {
     async fn insert_profile(&self, conn: &Pool<Postgres>, params: ProfileCreate) -> Result<i64, sqlx::Error>;    
@@ -73,9 +76,10 @@ impl InsertProfileFn for DbRepo {
     }
 }
 
+#[automock]
 #[async_trait]
 pub trait QueryProfileFn {
-    async fn query_profile(&self, conn: &Pool<Postgres>, id: i64) -> Result<Option<ProfileQueryResult>, sqlx::Error>;
+    async fn query_profile(&self, conn: &Pool<Postgres>, id: i64) -> Result<Option<ProfileQueryResult>, sqlx::Error> ;
 }
 
 #[async_trait]
@@ -85,6 +89,7 @@ impl QueryProfileFn for DbRepo {
     }
 }
 
+#[automock]
 #[async_trait]
 pub trait QueryProfileByUserFn {
     async fn query_profile_by_user(&self, conn: &Pool<Postgres>, user_name: String) -> Result<Option<ProfileQueryResult>, sqlx::Error>;
@@ -97,6 +102,7 @@ impl QueryProfileByUserFn for DbRepo {
     }
 }
 
+#[automock]
 #[async_trait]
 pub trait FollowUserFn {
     async fn follow_user(&self, conn: &Pool<Postgres>, follower_id: i64, following_id: i64) -> Result<i64, sqlx::Error>;
@@ -111,7 +117,25 @@ impl FollowUserFn for DbRepo {
 
 #[cfg(test)]
 mod tests {
-    use crate::{common_tests::actix_fixture::{get_conn_pool, PUBLIC_GROUP_TYPE, create_random_body, FixtureError, MessageResponse}, common::entities::{messages::repo::{InsertMessageFn, InsertResponseMessageFn}, circle_group::repo::{InsertCircleFn, InsertCircleMemberFn}}};
+    use crate::{
+        common_tests::actix_fixture::{
+            get_conn_pool, 
+            PUBLIC_GROUP_TYPE, 
+            create_random_body, 
+            FixtureError, 
+            MessageResponse
+        }, 
+        common::entities::{
+            messages::repo::{
+                InsertMessageFn, 
+                InsertResponseMessageFn
+            }, 
+            circle_group::repo::{
+                InsertCircleFn, 
+                InsertCircleMemberFn
+            }
+        }
+    };
     use super::*;
     use fake::{faker::lorem::en::Sentence, Fake};
     use lazy_static::lazy_static;
@@ -307,18 +331,9 @@ mod tests {
     mod test_mod_insert_profile {
         use super::*;
 
-        struct InsertProfileDbRepo;
-
-        #[async_trait]
-        impl InsertProfileFn for InsertProfileDbRepo {
-            async fn insert_profile(&self, conn: &Pool<Postgres>, params: ProfileCreate) -> Result<i64, sqlx::Error> {
-                private_members::insert_profile_inner(conn, params).await
-            }
-        }
-
         async fn test_insert_profile_body() {
             let fixtures = fixtures();
-            let db_repo = InsertProfileDbRepo;            
+            let db_repo = DbRepo;            
 
             let profile_id = db_repo.insert_profile(&fixtures.conn, ProfileCreate { 
                 user_name: "user_a".to_string(), 
@@ -338,30 +353,11 @@ mod tests {
         }
     }
 
-    mod test_mod_query_profile {        
+    mod test_mod_query_profile {             
         use super::*;
-
-        struct QueryProfileDbRepo;
-
-        #[async_trait]
-        impl InsertProfileFn for QueryProfileDbRepo {
-            async fn insert_profile(&self, _: &Pool<Postgres>, params: ProfileCreate) -> Result<i64, sqlx::Error> {
-                Ok(fixtures().profiles.into_iter().find(|p| {
-                    p.user_name == params.user_name
-                }).unwrap().id)
-            }
-        }
-
-        #[async_trait]
-        impl QueryProfileFn for QueryProfileDbRepo {
-            async fn query_profile(&self, conn: &Pool<Postgres>, id: i64) -> Result<Option<ProfileQueryResult>, sqlx::Error> {
-                private_members::query_profile_inner(conn, id).await
-            }
-        }
 
         async fn test_insert_profile_and_get_profile_body() {
             let fixtures = fixtures();
-            let db_repo = QueryProfileDbRepo;
 
             let selected_profile = fixtures.profiles[0].clone(); // arbitrarily get first profile
             let profile_to_create = ProfileCreate { 
@@ -372,7 +368,20 @@ mod tests {
                 main_url: selected_profile.main_url,
                 avatar: selected_profile.avatar
             };
-            let profile_id = db_repo.insert_profile(&fixtures.conn, profile_to_create.clone()).await.unwrap();
+            let mut mock_repo = MockInsertProfileFn::new();
+            let user_name = profile_to_create.user_name.clone();
+            mock_repo.expect_insert_profile()
+                .withf(move |_, params| params.user_name == user_name)
+                .times(1)
+                .returning(move |_, params| {
+                    Ok(fixtures.profiles.iter().find(|p| {
+                        p.user_name == params.user_name
+                    }).unwrap().id)
+                });
+
+            let db_repo = DbRepo;
+            
+            let profile_id = mock_repo.insert_profile(&fixtures.conn, profile_to_create.clone()).await.unwrap();
 
             let profile = db_repo.query_profile(&fixtures.conn, profile_id).await.unwrap().unwrap();
 
@@ -394,27 +403,9 @@ mod tests {
     mod test_mod_query_profile_by_user {
         use super::*;
 
-        struct QueryProfileDbRepo;
-
-        #[async_trait]
-        impl InsertProfileFn for QueryProfileDbRepo {
-            async fn insert_profile(&self, _: &Pool<Postgres>, params: ProfileCreate) -> Result<i64, sqlx::Error> {
-                Ok(fixtures().profiles.into_iter().find(|p| {
-                    p.user_name == params.user_name
-                }).unwrap().id)
-            }
-        }
-
-        #[async_trait]
-        impl QueryProfileByUserFn for QueryProfileDbRepo {
-            async fn query_profile_by_user(&self, conn: &Pool<Postgres>, user_name: String) -> Result<Option<ProfileQueryResult>, sqlx::Error> {
-                private_members::query_profile_by_user_inner(conn, user_name).await
-            }
-        }
-
         async fn test_insert_profile_and_get_profile_by_user_body() {
             let fixtures = fixtures();
-            let db_repo = QueryProfileDbRepo;
+            let db_repo = DbRepo;
 
             let selected_profile = fixtures.profiles[0].clone();
             let profile_to_create = ProfileCreate { 
@@ -425,7 +416,16 @@ mod tests {
                 main_url: selected_profile.main_url, 
                 avatar: selected_profile.avatar
             };
-            let profile_id = db_repo.insert_profile(&fixtures.conn, profile_to_create.clone()).await.unwrap();
+            let mut mock_insert_repo = MockInsertProfileFn::new();
+            let profiles = fixtures.profiles.clone();
+            mock_insert_repo.expect_insert_profile()
+                .times(1)
+                .returning(move |_, params| {
+                    Ok(profiles.clone().iter().find(|p| {
+                        p.user_name == params.user_name
+                    }).unwrap().id)
+                });
+            let profile_id = mock_insert_repo.insert_profile(&fixtures.conn, profile_to_create.clone()).await.unwrap();
             
             let profile = db_repo.query_profile_by_user(&fixtures.conn, selected_profile.user_name).await.unwrap().unwrap();
 
@@ -447,30 +447,22 @@ mod tests {
     mod test_mod_insert_follower {
         use super::*;
 
-        struct FollowUserDbRepo;
-
-        #[async_trait]
-        impl FollowUserFn for FollowUserDbRepo {
-            async fn follow_user(&self, conn: &Pool<Postgres>, follower_id: i64, following_id: i64) -> Result<i64, sqlx::Error> {
-                private_members::follow_user_inner(conn, follower_id, following_id).await
-            }
-        }
-
-        #[async_trait]
-        impl InsertProfileFn for FollowUserDbRepo {
-            async fn insert_profile(&self, _: &Pool<Postgres>, params: ProfileCreate) -> Result<i64, sqlx::Error> {
-                Ok(fixtures().profiles.into_iter().find(|p| {
-                    p.user_name == params.user_name
-                }).unwrap().id)
-            }
-        }
-
         async fn test_insert_follow_user_body() {
             let fixtures = fixtures();
-            let db_repo = FollowUserDbRepo;
+            let db_repo = DbRepo;
+            
+            let mut mock_insert_repo = MockInsertProfileFn::new();
+            let profiles = fixtures.profiles.clone();
+            mock_insert_repo.expect_insert_profile()
+                .times(2)
+                .returning(move |_, params| {
+                    Ok(profiles.clone().into_iter().find(|p| {
+                        p.user_name == params.user_name
+                    }).unwrap().id)
+                });
 
             let selected_follower_profile = fixtures.profiles[0].clone();
-            let follower_id = db_repo.insert_profile(&fixtures.conn, ProfileCreate { 
+            let follower_id = mock_insert_repo.insert_profile(&fixtures.conn, ProfileCreate { 
                 user_name: selected_follower_profile.user_name, 
                 full_name: selected_follower_profile.full_name,
                 description: selected_follower_profile.description,
@@ -480,7 +472,7 @@ mod tests {
             }).await.unwrap();
             
             let selected_following_profile = fixtures.profiles[1].clone();
-            let following_id = db_repo.insert_profile(&fixtures.conn, ProfileCreate { 
+            let following_id = mock_insert_repo.insert_profile(&fixtures.conn, ProfileCreate { 
                 user_name: selected_following_profile.user_name,
                 full_name: selected_following_profile.full_name,
                 description: selected_following_profile.description, 
