@@ -1,6 +1,7 @@
 use crate::common::entities::{
     base::{EntityId, DbRepo}
 };
+use mockall::automock;
 use sqlx::{Pool, Postgres};
 use super::model:: MessageWithFollowingAndBroadcastQueryResult;
 use async_trait::async_trait;
@@ -295,6 +296,7 @@ mod private_members {
 
 }
 
+#[automock]
 #[async_trait]
 pub trait InsertMessageFn {
     async fn insert_message(&self, conn: &Pool<Postgres>, user_id: i64, body: &str, group_type: i32, broadcasting_msg_id: Option<i64>) -> Result<i64, sqlx::Error>;
@@ -308,6 +310,7 @@ impl InsertMessageFn for DbRepo {
     }
 }
 
+#[automock]
 #[async_trait]
 pub trait InsertResponseMessageFn {
     async fn insert_response_message(&self, conn: &Pool<Postgres>, user_id: i64, body: &str, group_type: i32, original_msg_id: i64) -> Result<i64, sqlx::Error>;
@@ -320,6 +323,7 @@ impl InsertResponseMessageFn for DbRepo {
     }
 }
 
+#[automock]
 #[async_trait]
 pub trait QueryMessageFn {
     async fn query_message(&self, conn: &Pool<Postgres>, id: i64) -> Result<Option<MessageWithFollowingAndBroadcastQueryResult>, sqlx::Error>;
@@ -332,6 +336,7 @@ impl QueryMessageFn for DbRepo {
     }
 }
 
+#[automock]
 #[async_trait]
 pub trait QueryMessagesFn {
     async fn query_messages(&self, conn: &Pool<Postgres>, user_id: i64, last_updated_at: DateTime<Utc>, page_size: i16) -> Result<Vec<MessageWithFollowingAndBroadcastQueryResult>, sqlx::Error>;
@@ -349,7 +354,9 @@ mod tests {
     use std::sync::{Arc, RwLock};
     use fake::{faker::name::en::{Name, FirstName, LastName}, Fake};
     use lazy_static::lazy_static;
-    use crate::{common_tests::actix_fixture::{get_conn_pool, PUBLIC_GROUP_TYPE}, common::entities::profiles::{repo::{InsertProfileFn, QueryProfileFn}, model::ProfileCreate}};
+    use crate::{
+        common_tests::actix_fixture::{get_conn_pool, PUBLIC_GROUP_TYPE}, common::entities::profiles::{repo::{InsertProfileFn, QueryProfileFn, MockInsertProfileFn}, model::ProfileCreate}
+    };
     use super::*;
   
     #[derive(Clone)]
@@ -421,36 +428,38 @@ mod tests {
         };
     }
 
-    fn fixtures() -> Fixtures {
+    fn get_fixtures() -> Fixtures {
         Arc::clone(&FIXTURES).read().unwrap().clone().unwrap()
+    }
+
+    fn get_insert_profile_mock() -> MockInsertProfileFn {
+        let mut mock_insert_profile = MockInsertProfileFn::new();
+        mock_insert_profile.expect_insert_profile()
+            .returning(move |_, _| {
+                Ok(get_fixtures().profile_id)
+            });
+        mock_insert_profile
+    }
+
+    fn get_insert_message_mock() -> MockInsertMessageFn {
+        let mut mock_insert_message = MockInsertMessageFn::new();
+        mock_insert_message.expect_insert_message()
+            .returning(|_, _, _, _, _| {
+                Ok(get_fixtures().original_msg_id)
+            });
+        mock_insert_message
     }
 
     mod test_mod_insert_message {
         use super::*;
-
-        struct InsertMsgDbRepo;
-
-        #[allow(unused)]
-        #[async_trait]
-        impl InsertMessageFn for InsertMsgDbRepo {
-            async fn insert_message(&self, conn: &Pool<Postgres>, user_id: i64, body: &str, group_type: i32, broadcasting_msg_id: Option<i64>) -> Result<i64, sqlx::Error> {
-                private_members::insert_message_inner(conn, user_id, body, group_type, broadcasting_msg_id).await
-            }
-        }
-
-        #[allow(unused)]
-        #[async_trait]
-        impl InsertProfileFn for InsertMsgDbRepo {
-            async fn insert_profile(&self, conn: &Pool<Postgres>, params: ProfileCreate) -> Result<i64, sqlx::Error> {
-                Ok(fixtures().profile_id)
-            }
-        }
         
         async fn test_insert_message_body() {                
-            let db_repo = InsertMsgDbRepo;
-            let fixtures = fixtures();
+            let db_repo = DbRepo;
+            let fixtures = get_fixtures();
 
-            let profile_id = db_repo.insert_profile(&fixtures.conn, ProfileCreate { 
+            let mock_insert_profile = get_insert_profile_mock();
+
+            let profile_id = mock_insert_profile.insert_profile(&fixtures.conn, ProfileCreate { 
                 user_name: "tester".to_string(), 
                 full_name: "Dave Wave".to_string(), 
                 description: format!("{} a description", PREFIX), 
@@ -473,38 +482,15 @@ mod tests {
     mod test_mod_query_message {
         use super::*;
 
-        struct QueryMessageDbRepo;
-
-        #[allow(unused)]
-        #[async_trait]
-        impl InsertMessageFn for QueryMessageDbRepo {
-            async fn insert_message(&self, conn: &Pool<Postgres>, user_id: i64, body: &str, group_type: i32, broadcasting_msg_id: Option<i64>) -> Result<i64, sqlx::Error> {
-                Ok(fixtures().original_msg_id)
-            }
-        }
-
-        #[allow(unused)]
-        #[async_trait]
-        impl InsertProfileFn for QueryMessageDbRepo {
-            async fn insert_profile(&self, conn: &Pool<Postgres>, params: ProfileCreate) -> Result<i64, sqlx::Error> {
-                Ok(fixtures().profile_id)
-            }
-        }
-
-        #[async_trait]
-        impl QueryMessageFn for QueryMessageDbRepo {
-            async fn query_message(&self, conn: &Pool<Postgres>, id: i64) -> Result<Option<MessageWithFollowingAndBroadcastQueryResult>, sqlx::Error> {
-                private_members::query_message_inner(conn, id).await
-            }
-        }
-
         async fn test_query_message_body() {                
-            let db_repo = QueryMessageDbRepo;
-            let fixtures = fixtures();
+            let db_repo = DbRepo;
+            let fixtures = get_fixtures();
+            let mock_insert_profile = get_insert_profile_mock();
+            let mock_insert_message = get_insert_message_mock();
 
-            let profile_id = db_repo.insert_profile(&fixtures.conn, fixtures.profile_create.clone()).await.unwrap();
+            let profile_id = mock_insert_profile.insert_profile(&fixtures.conn, fixtures.profile_create.clone()).await.unwrap();
             
-            let original_msg_id = db_repo.insert_message(&fixtures.conn, profile_id, "Body of message that is being responded to.", PUBLIC_GROUP_TYPE, None).await.unwrap();
+            let original_msg_id = mock_insert_message.insert_message(&fixtures.conn, profile_id, "Body of message that is being responded to.", PUBLIC_GROUP_TYPE, None).await.unwrap();
 
             let original_message = db_repo.query_message(&fixtures.conn, original_msg_id).await.unwrap().unwrap();
 
@@ -520,36 +506,13 @@ mod tests {
     mod test_mod_insert_response_message {
         use super::*;
 
-        struct InsertResponseMsgDbRepo;
-
-        #[async_trait]
-        impl InsertResponseMessageFn for InsertResponseMsgDbRepo {
-            async fn insert_response_message(&self, conn: &Pool<Postgres>, user_id: i64, body: &str, group_type: i32, original_msg_id: i64) -> Result<i64, sqlx::Error> {
-                private_members::insert_response_message_inner(conn, user_id, body, group_type, original_msg_id).await
-            }
-        }
-
-        #[allow(unused)]
-        #[async_trait]
-        impl InsertMessageFn for InsertResponseMsgDbRepo {
-            async fn insert_message(&self, conn: &Pool<Postgres>, user_id: i64, body: &str, group_type: i32, broadcasting_msg_id: Option<i64>) -> Result<i64, sqlx::Error> {
-                Ok(fixtures().original_msg_id)
-            }
-        }
-
-        #[allow(unused)]
-        #[async_trait]
-        impl InsertProfileFn for InsertResponseMsgDbRepo {
-            async fn insert_profile(&self, conn: &Pool<Postgres>, params: ProfileCreate) -> Result<i64, sqlx::Error> {
-                Ok(fixtures().profile_id)
-            }
-        }
-
         async fn test_insert_response_message_body() {                
-            let db_repo = InsertResponseMsgDbRepo;
-            let fixtures = fixtures();
+            let db_repo = DbRepo;
+            let fixtures = get_fixtures();
+            let mock_insert_profile = get_insert_profile_mock();
+            let mock_insert_message = get_insert_message_mock();
 
-            let profile_id_result = db_repo.insert_profile(&fixtures.conn, ProfileCreate { 
+            let profile_id_result = mock_insert_profile.insert_profile(&fixtures.conn, ProfileCreate { 
                 user_name: "tester".to_string(), 
                 full_name: "Dave Wave".to_string(), 
                 description: "a description".to_string(), 
@@ -558,7 +521,7 @@ mod tests {
                 avatar: vec![] 
             }).await;
             let profile_id = profile_id_result.unwrap();
-            let original_msg_id = db_repo.insert_message(&fixtures.conn, profile_id, "Body of message that is being responded to.", PUBLIC_GROUP_TYPE, None).await;
+            let original_msg_id = mock_insert_message.insert_message(&fixtures.conn, profile_id, "Body of message that is being responded to.", PUBLIC_GROUP_TYPE, None).await;
 
             let response_msg = db_repo.insert_response_message(&fixtures.conn, profile_id, "Body of response message", PUBLIC_GROUP_TYPE, original_msg_id.unwrap()).await;
             assert!(response_msg.unwrap() > 0);
@@ -570,8 +533,8 @@ mod tests {
         }
     }
 
-    // no need to blindly follow these patterns
-    // specific scenarios will arise where tests require their own different setup
+    // this section shows that by using modules we are able to separate concerns and provide each test with 
+    // whatever data it may need uniquely
     mod test_mod_query_messages_by_following {
         use crate::common::entities::profiles::{model::ProfileQueryResult, repo::FollowUserFn};
         use super::*;
