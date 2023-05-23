@@ -7,10 +7,6 @@ use super::model:: MessageWithFollowingAndBroadcastQueryResult;
 use async_trait::async_trait;
 use chrono::{DateTime, Utc};
 
-// why bother with this?
-// 1. we create a single logical container where multiple related members can exist
-// 2. we create repeatable structure to our code
-// 3. we can hide some members even from our parent module
 mod private_members {
     use crate::common::entities::messages::model::MessageWithProfileQueryResult;
     use super::*;
