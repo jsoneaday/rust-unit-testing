@@ -3,8 +3,7 @@ use sqlx::{Pool, Postgres};
 use crate::common::entities::base::{EntityId, DbRepo};
 use super::model::{CircleGroupWithProfileQueryResult, CircleGroupMemberWithProfileQueryResult};
 
-mod private_members {    
-    use crate::common::entities::circle_group::model::{CircleGroupWithProfileQueryResult, CircleGroupMemberWithProfileQueryResult};
+mod private_members {
     use super::*;
 
     pub async fn insert_circle_inner(conn: &Pool<Postgres>, circle_owner_id: i64) -> Result<i64, sqlx::Error> {
@@ -19,7 +18,8 @@ mod private_members {
         }
     }
 
-    pub async fn insert_circle_member_inner(conn: &Pool<Postgres>, circle_group_id: i64, new_member_id: i64) -> Result<i64, sqlx::Error> {
+    pub async fn insert_circle_member_inner(conn: &Pool<Postgres>, circle_group_id: i64, new_member_id: i64) 
+        -> Result<i64, sqlx::Error> {
         let insert_result = sqlx::query_as::<_, EntityId>("insert into circle_group_member (circle_group_id, member_id) values ($1, $2) returning id")
             .bind(circle_group_id)
             .bind(new_member_id)
