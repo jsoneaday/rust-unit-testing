@@ -1,4 +1,4 @@
-use twitter_clone_api::{
+use bonus_twitter_clone_api::{
     common_tests::actix_fixture::{ get_app_state, PUBLIC_GROUP_TYPE },
     common::entities::{
         profiles::{ model::ProfileCreate, repo::{ InsertProfileFn } },

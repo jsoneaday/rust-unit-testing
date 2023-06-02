@@ -1,11 +1,11 @@
 use actix_http::header::HeaderValue;
 use fake::{ faker::{ internet::en::Username }, Fake };
-use twitter_clone_api::{
+use bonus_twitter_clone_api::{
     routes::profiles::model::{ ProfileResponder },
     common_tests::actix_fixture::{ get_profile_create_multipart, get_profile_avatar },
 };
 use actix_web::{ test, http::header };
-use twitter_clone_api::common_tests::actix_fixture::get_app;
+use bonus_twitter_clone_api::common_tests::actix_fixture::get_app;
 
 #[tokio::test]
 async fn test_route_create_profile_with_avatar() {

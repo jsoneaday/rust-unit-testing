@@ -2,15 +2,15 @@ use actix_http::header::HeaderValue;
 use actix_web::http::header;
 use fake::Fake;
 use fake::faker::internet::en::Username;
-use twitter_clone_api::common_tests::actix_fixture::{
+use bonus_twitter_clone_api::common_tests::actix_fixture::{
     get_profile_create_multipart,
     get_profile_avatar,
 };
-use twitter_clone_api::{
+use bonus_twitter_clone_api::{
     common_tests::actix_fixture::get_app,
     routes::messages::model::MessageResponder,
 };
-use twitter_clone_api::routes::messages::model::{ MessagePostJson, GroupTypes };
+use bonus_twitter_clone_api::routes::messages::model::{ MessagePostJson, GroupTypes };
 use actix_web::{ test, web::Json };
 
 #[tokio::test]

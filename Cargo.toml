@@ -10,5 +10,6 @@ members = [
     "2/end_fake",
     "2/start_mockall",
     "2/end_mockall",
-    "final/twitter-api"
+    "final/twitter-api",
+    "bonus/twitter-api"
 ]
